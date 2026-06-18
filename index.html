@@ -26,7 +26,6 @@
 </div>
 
 
-
 <script>
 
 const shape_folder = "shapes_updated/";
@@ -37,11 +36,16 @@ const colors = ["black", "blue", "cyan", "green", "magenta",
 
 //create canvas object
 const canvas = document.getElementById("myCanvas");
-let canvas_size = Math.min(window.innerHeight, window.innerWidth) - 20
-canvas_size = Math.min(canvas_size, window.innerHeight - 100)
+let canvas_size = Math.min(window.innerHeight, window.innerWidth) - 20;
+max_canvas_size = Math.min(canvas_size, window.innerHeight - 100);
+canvas_size = max_canvas_size;
 canvas.width = canvas_size;
 canvas.height = canvas_size;
 const ctx = canvas.getContext("2d");
+
+//create audio holder
+const audioContext = new AudioContext();
+const sounds = new Map();
 
 let img_size = 0.15 * canvas_size;
 
@@ -183,12 +187,14 @@ class Game{
      * @param {Integer} current_round
      * @param {Integer} num_correct
      * @param {Integer} num_wrong
+     * @param {Integer} streak
      */
-    constructor(rounds, current_round, num_correct, num_wrong){
+    constructor(rounds = [], current_round = 0, num_correct = 0, num_wrong = 0, streak = 0){
         this.rounds = rounds;
         this.current_round = current_round;
         this.num_correct = num_correct;
         this.num_wrong = num_wrong;
+        this.streak = streak;
     }
 
     generate_shapes(num) {
@@ -244,12 +250,17 @@ class Game{
     }
 
     async button_functionality(clicked_shape){
+        let sound;
         if (clicked_shape === this.rounds[this.current_round].shape_changed) {
             this.rounds[this.current_round].correct = true;
             this.num_correct++;
+            playSound("correct", 0.5, 1 + Math.min(this.streak, 4) * 0.025);
+            this.streak++;
         } else {
             this.rounds[this.current_round].correct = false;
             this.num_wrong++;
+            this.streak = 0;
+            playSound("incorrect", 0.5);
         }
         this.rounds[this.current_round].clear_buttons();
         console.log("Round: ", this.current_round);
@@ -283,9 +294,15 @@ class Game{
 
 }
 
-function setup() {
+async function setup() {
     
+    create_start_button();
+    await loadSound("correct", "audio/correct_answer2.mp3");
+    await loadSound("incorrect", "audio/incorrect_answer.mp3");
+    
+}
 
+function create_start_button() {
     const container = document.getElementById("canvasContainer");
     container.style.width = canvas_size + "px";
     container.style.height = canvas_size + "px";
@@ -313,10 +330,10 @@ function distance(pos1, pos2) {
 
 function start_game() {
     num = 5;
-    game = new Game([], 0, 0, 0);
+    game = new Game();
     document.body.appendChild(createSlider(0.08, 0.2, 0.15, 0.002, 0, 
         (value) => {
-            img_size = canvas_size * value
+            img_size = canvas_size * value;
             if (game.rounds[game.current_round].drawn == true){
                 game.rounds[game.current_round].clear_drawings()
                 game.rounds[game.current_round].draw_images()
@@ -329,9 +346,38 @@ function start_game() {
 
         }, "Shape Size")
     );
+    document.body.appendChild(createSlider(0.5, 1, 1, 0.01, 1,
+        (value) => {
+            canvas_size = max_canvas_size * value;
+        }, "Canvas Size")
+    );
     game.new_round(num)
     game.start_round()
 
+}
+
+async function loadSound(name, url) {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = await audioContext.decodeAudioData(arrayBuffer);
+    sounds.set(name, buffer);
+}
+
+function playSound(name, volume = 1, pitch = 1) {
+    const buffer = sounds.get(name);
+    if (!buffer) return;
+
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = pitch;
+
+    const gain = audioContext.createGain();
+    gain.gain.value = volume;
+
+    source.connect(gain);
+    gain.connect(audioContext.destination);
+
+    source.start();
 }
 
 function createSlider(min, max, start, step, num, func, labelText){
