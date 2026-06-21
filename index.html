@@ -188,13 +188,15 @@ class Game{
      * @param {Integer} num_correct
      * @param {Integer} num_wrong
      * @param {Integer} streak
+     * @param {Integer} max_streak
      */
-    constructor(rounds = [], current_round = 0, num_correct = 0, num_wrong = 0, streak = 0){
+    constructor(rounds = [], current_round = 0, num_correct = 0, num_wrong = 0, streak = 0, max_streak = 0){
         this.rounds = rounds;
         this.current_round = current_round;
         this.num_correct = num_correct;
         this.num_wrong = num_wrong;
         this.streak = streak;
+        this.max_streak = max_streak;
     }
 
     generate_shapes(num) {
@@ -225,7 +227,7 @@ class Game{
                 y = Math.random() * (canvas_size - img_size);
                 //If the shape is too close to another, it will relocate it
                 for (let j = 0; j < images.length; j++){
-                    if (distance([x, y], images[j].position) < distance([0, 0], [img_size, img_size])){
+                    if (distance([x, y], images[j].position) < distance([0, 0], [img_size*1.2, img_size*1.2])){
                         rerandomize = true
                     }
                 }
@@ -254,8 +256,9 @@ class Game{
         if (clicked_shape === this.rounds[this.current_round].shape_changed) {
             this.rounds[this.current_round].correct = true;
             this.num_correct++;
-            playSound("correct", 0.5, 1 + Math.min(this.streak, 4) * 0.025);
+            playSound("correct", 0.5, 1 + /*Math.min(this.streak, 4)*/ this.streak * 0.025);
             this.streak++;
+            this.max_streak = Math.max(this.streak, this.max_streak);
         } else {
             this.rounds[this.current_round].correct = false;
             this.num_wrong++;
@@ -268,7 +271,7 @@ class Game{
         console.log("Wrong: ", this.num_wrong);
         this.new_round(5);
         this.current_round++;
-        await sleep(2000);
+        await sleep(0);
         this.start_round();
     }
 
