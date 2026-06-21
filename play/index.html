@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <head>
     <title>Play</title>
+    <link rel="stylesheet" href="../css/style.css">
     <style>
-        body {
-            background-color: white;
-        }
         #canvasContainer {
             position: relative;
             width: 300px;
@@ -20,7 +18,7 @@
 <div id="header"></div>
 
 <script>
-    fetch("header.html")
+    fetch("../header.html")
         .then(response => response.text())
         .then(data => {
             document.getElementById("header").innerHTML = data;
@@ -37,11 +35,15 @@
 
 <script>
 
-const shape_folder = "shapes_updated/";
+//For holding links to the files
+const shape_folder = "../shapes_updated/";
 const image_folders = ["circle", "cog", "crescent", "horizontal", 
                         "square", "triangle", "vertical_rectangle", "x"];
 const colors = ["black", "blue", "cyan", "green", "magenta", 
                 "orange", "red", "white", "yellow"];
+
+//creating a cache for images
+const imageCache = new Map();
 
 //create canvas object
 const canvas = document.getElementById("myCanvas");
@@ -56,7 +58,7 @@ const ctx = canvas.getContext("2d");
 const audioContext = new AudioContext();
 const sounds = new Map();
 
-let img_size = 0.15 * canvas_size;
+let img_size = 0.2 * canvas_size;
 
 //pauses for specified ms
 function sleep(ms) {
@@ -91,11 +93,14 @@ class Shape_obj{
     }
 
     draw(ctx, size) {
-        const img = new Image();
-        img.src = this.get_src();
-        img.onload = () => {
-            ctx.drawImage(img, this.position[0], this.position[1], size, size)
+        const img = imageCache.get(this.get_src());
+
+        if (!img) {
+            console.error("Missing image:", this.get_src());
+            return;
         }
+
+        ctx.drawImage(img, this.position[0], this.position[1], size, size)
     }
 
     create_button(size, onClick) {
@@ -110,8 +115,8 @@ class Shape_obj{
         button.style.left = this.position[0] + "px";
         button.style.top = this.position[1] + "px";
 
-        const img = document.createElement("img");
-        img.src = this.get_src();
+        const cached_img = imageCache.get(this.get_src());
+        const img = cached_img.cloneNode();
         img.width = size;
         img.height = size;
 
@@ -308,9 +313,12 @@ class Game{
 
 async function setup() {
     
+    await preloadImages();
+
+    await loadSound("correct", "../audio/correct_answer2.mp3");
+    await loadSound("incorrect", "../audio/incorrect_answer.mp3");
+
     create_start_button();
-    await loadSound("correct", "audio/correct_answer2.mp3");
-    await loadSound("incorrect", "audio/incorrect_answer.mp3");
     
 }
 
@@ -343,7 +351,7 @@ function distance(pos1, pos2) {
 function start_game() {
     num = 5;
     game = new Game();
-    document.body.appendChild(createSlider(0.08, 0.2, 0.15, 0.002, 0, 
+    /*document.body.appendChild(createSlider(0.08, 0.2, 0.15, 0.002, 0, 
         (value) => {
             img_size = canvas_size * value;
             if (game.rounds[game.current_round].drawn == true){
@@ -357,12 +365,7 @@ function start_game() {
             }
 
         }, "Shape Size")
-    );
-    document.body.appendChild(createSlider(0.5, 1, 1, 0.01, 1,
-        (value) => {
-            canvas_size = max_canvas_size * value;
-        }, "Canvas Size")
-    );
+    );*/
     game.new_round(num)
     game.start_round()
 
@@ -373,6 +376,31 @@ async function loadSound(name, url) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = await audioContext.decodeAudioData(arrayBuffer);
     sounds.set(name, buffer);
+}
+
+async function preloadImages() {
+    const promises = [];
+
+    for (const shape of image_folders) {
+        for (const color of colors) {
+            const src = `${shape_folder}${shape}/${shape}_${color}.png`;
+
+            const img = new Image();
+
+            const promise = new Promise((resolve, reject) => {
+                img.onload = () => {
+                    imageCache.set(src, img);
+                    resolve();
+                };
+                img.onerror = reject;
+            });
+
+            img.src = src;
+            promises.push(promise);
+        }
+    }
+
+    await Promise.all(promises);
 }
 
 function playSound(name, volume = 1, pitch = 1) {
