@@ -1,7 +1,9 @@
+/*background color*/
 body {
     background-color: white;
 }
 
+/*header to change tabs*/
 nav {
     background-color: #333;
     padding: 10px;
@@ -15,4 +17,30 @@ nav a {
 
 nav a:hover {
     color: #00ccff;
+}
+
+/*displaying canvas and info text*/
+.gameLayout {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+/* Desktop */
+.infoPanel {
+    max-width: 300px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .gameLayout {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .infoPanel {
+        max-width: 90%;
+        text-align: center;
+    }
 }
